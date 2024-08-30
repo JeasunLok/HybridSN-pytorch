@@ -35,15 +35,15 @@ gamma = 0.9
 # data settings
 train_ratio = 0.5 # percentage => percentage of samples(0-1) 
 val_ratio = 0.1 # percentage => percentage of samples(0-1) 
-data_mat_path = r"data\data_patches.mat" # data
-label_mat_path = r"data\label_patches.mat" # label
+data_mat_path = r"data\data_patches2.mat" # data
+label_mat_path = r"data\label_patches2.mat" # label
 #-------------------------------------------------------------------------------
 
 # make the run folder in logs
 #-------------------------------------------------------------------------------
 time_now = time.localtime()
 if model_type == "HybridSN":
-    time_folder = r".\\logs\\" + time.strftime("%Y-%m-%d-%H-%M-%S", time_now) + "-" + model_type
+    time_folder = r".\\logs\\" + time.strftime("%Y-%m-%d-%H-%M-%S", time_now) + "-" + model_type + "-" + mode
     logs_file = os.path.join(time_folder, "logs.txt")
     os.makedirs(time_folder)
 else:
@@ -62,7 +62,7 @@ cudnn.benchmark = False
 
 # 定义一系列变换操作
 transform = Compose([
-    Normalize(min_val=0.0, max_val=1.0),
+    # Normalize(min_val=0.0, max_val=1.0),
     RandomHorizontalFlip(p=0.5),
 ])
 
@@ -128,7 +128,7 @@ if mode == "train":
             log_training_results(logs_file, mode='train', epoch_num=e+1, train_loss=train_loss, train_acc=train_acc,
                      OA_val=OA_val, AA_val=AA_val, Kappa_val=Kappa_val, CA_val=CA_val, CM_val=CM_val)
             if (e != epoch -1):
-                print("Epoch: {:03d}  =>  OA: {:.4f}% | AA: {:.4f}% | Kappa: {:.4f}".format(e+1, OA_val, AA_val, Kappa_val))
+                print("Epoch: {:03d}  =>  OA: {:.4f}% | AA: {:.4f}% | Kappa: {:.4f}".format(e+1, OA_val*100, AA_val*100, Kappa_val))
             print("===============================================================================")
 
     toc = time.time()
@@ -136,7 +136,7 @@ if mode == "train":
     print("end training")
     print("===============================================================================")
     print("Val result:")
-    print("OA: {:.4f}% | AA: {:.4f}% | Kappa: {:.4f}".format(OA_val, AA_val, Kappa_val))
+    print("OA: {:.4f}% | AA: {:.4f}% | Kappa: {:.4f}".format(OA_val*100, AA_val*100, Kappa_val))
     print("CA:", end="")
     print(CA_val)
     print("Val Confusion Matrix:")
@@ -161,7 +161,7 @@ OA_test, AA_test, Kappa_test, CA_test, CM_test = output_metric(label, prediction
 log_training_results(logs_file, mode='test', OA_test=OA_test, AA_test=AA_test, Kappa_test=Kappa_test, 
                      CA_test=CA_test, CM_test=CM_test)
 print("Test result:")
-print("OA: {:.4f} | AA: {:.4f} | Kappa: {:.4f}".format(OA_test, AA_test, Kappa_test))
+print("OA: {:.4f}% | AA: {:.4f}% | Kappa: {:.4f}".format(OA_test*100, AA_test*100, Kappa_test))
 print("CA:", end="")
 print(CA_test)
 print("Test Confusion Matrix:")
