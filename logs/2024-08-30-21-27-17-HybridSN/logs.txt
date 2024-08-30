@@ -1,0 +1,38 @@
+Epoch: 001 | Train Loss: 12.3123 | Train Acc: 90.0815
+Epoch: 002 | Train Loss: 0.5734 | Train Acc: 92.2554
+Epoch: 003 | Train Loss: 2.8094 | Train Acc: 91.9837
+Epoch: 004 | Train Loss: 0.3468 | Train Acc: 92.2554
+Epoch: 005 | Train Loss: 0.2833 | Train Acc: 92.2554
+Epoch: 005 | Train Loss: 0.2833 | Train Acc: 92.2554
+===============================================================================
+Epoch: 005 => Validation Results:
+OA: 0.9184 | AA: 0.5000 | Kappa: 0.0000
+CA: [0. 1.]
+Validation Confusion Matrix:
+[[  0  12]
+ [  0 135]]
+===============================================================================
+Epoch: 006 | Train Loss: 0.2806 | Train Acc: 92.2554
+Epoch: 007 | Train Loss: 0.2765 | Train Acc: 92.2554
+Epoch: 008 | Train Loss: 0.2723 | Train Acc: 92.2554
+Epoch: 009 | Train Loss: 0.2791 | Train Acc: 92.2554
+Epoch: 010 | Train Loss: 0.2744 | Train Acc: 92.2554
+Epoch: 010 | Train Loss: 0.2744 | Train Acc: 92.2554
+===============================================================================
+Epoch: 010 => Validation Results:
+OA: 0.9184 | AA: 0.5000 | Kappa: 0.0000
+CA: [0. 1.]
+Validation Confusion Matrix:
+[[  0  12]
+ [  0 135]]
+===============================================================================
+===============================================================================
+Test Results:
+OA: 0.9220 | AA: 0.5000 | Kappa: 0.0000
+CA: [0. 1.]
+Test Confusion Matrix:
+[[  0  46]
+ [  0 544]]
+===============================================================================
+End of process
+===============================================================================
