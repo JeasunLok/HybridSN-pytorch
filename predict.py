@@ -23,10 +23,10 @@ def sliding_window(image, patch_size):
 # setting the parameters
 # model mode
 mode = "predict"
-model_path = r"logs\2024-08-30-21-27-17-HybridSN\model.pt" # model path
+model_path = r"logs\2024-08-31-03-11-16-HybridSN-train\model.pt" # model path
 # data settings
 input_path = r"data\ZY1E_AHSI_E113.18_N22.37_20230131_917748_L1A0000563893_Process.tif" # tif data
-output_path = r"data\output.tif" # tif data
+output_name = r"output.tif" # tif data
 # model settings
 model_type = "HybridSN" 
 patch_size = 33
@@ -49,7 +49,7 @@ bands = img.shape[2]
 time_now = time.localtime()
 if model_type == "HybridSN":
     time_folder = r".\\logs\\" + time.strftime("%Y-%m-%d-%H-%M-%S", time_now) + "-" + model_type + "-" + mode
-    logs_file = os.path.join(time_folder, "logs.txt")
+    output_path = os.path.join(time_folder, output_name)
     os.makedirs(time_folder)
 else:
     raise ValueError("invalid model type!")
