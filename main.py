@@ -33,8 +33,9 @@ weight_decay = 0
 gamma = 0.9
 
 # data settings
-train_ratio = 0.5 # percentage => percentage of samples(0-1) 
+train_ratio = 0.8 # percentage => percentage of samples(0-1) 
 val_ratio = 0.1 # percentage => percentage of samples(0-1) 
+data_type = "folder" # folder/file
 data_mat_path = r"data\data_patches2.mat" # data
 label_mat_path = r"data\label_patches2.mat" # label
 #-------------------------------------------------------------------------------
@@ -66,7 +67,12 @@ transform = Compose([
     RandomHorizontalFlip(p=0.5),
 ])
 
-data_train, data_val, data_test, label_train, label_val, label_test, bands, num_classes = load_and_split_data(data_mat_path, label_mat_path, train_ratio, val_ratio, patch_size)
+if data_type == "file":
+    data_train, data_val, data_test, label_train, label_val, label_test, bands, num_classes = load_and_split_data_by_file(data_mat_path, label_mat_path, train_ratio, val_ratio, patch_size)
+elif data_type == "folder":
+    data_train, data_val, data_test, label_train, label_val, label_test, bands, num_classes = load_and_split_data_by_folder(data_mat_path, label_mat_path, train_ratio, val_ratio, patch_size)
+else:
+    raise ValueError("invalid data type!")
 
 if model_type == "HybridSN":
     model = HybridSN(
