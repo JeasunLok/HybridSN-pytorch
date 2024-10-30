@@ -1,7 +1,36 @@
 import torch
-from osgeo import gdal
+import torch.nn as nn
+import torch.nn.functional as F
+# from osgeo import gdal
+import rasterio
 import numpy as np
 
+# a class for calculating the average of the accuracy and the loss
+#-------------------------------------------------------------------------------
+class FocalLoss(nn.Module):  
+    def __init__(self, alpha=0.5, gamma=2, reduction='mean', ignore_index=0):  
+        super(FocalLoss, self).__init__()  
+        self.alpha = alpha  
+        self.gamma = gamma  
+        self.ignore_index = ignore_index  
+        self.reduction = reduction  
+  
+    def forward(self, inputs, targets):  
+        ce_loss = F.cross_entropy(inputs, targets, reduction='none', ignore_index=self.ignore_index)  
+        pt = torch.exp(-ce_loss)  
+        focal_term = (1 - pt) ** self.gamma  
+        focal_loss = self.alpha * focal_term * ce_loss  
+  
+        if self.reduction == 'mean':  
+            loss = focal_loss.mean()  
+        elif self.reduction == 'sum':  
+            loss = focal_loss.sum()  
+        else:   
+            loss = focal_loss  
+  
+        return loss  
+#-------------------------------------------------------------------------------
+    
 # a class for calculating the average of the accuracy and the loss
 #-------------------------------------------------------------------------------
 class AverageMeter(object):
@@ -24,12 +53,36 @@ class AverageMeter(object):
 #-------------------------------------------------------------------------------
 # 自定义归一化 transform
 class Normalize:
-    def __init__(self, min_val=0.0, max_val=1.0):
-        self.min_val = min_val
-        self.max_val = max_val
+    def __init__(self, mean=0.0, std=1.0):
+        """
+        初始化归一化类。
+
+        参数:
+        target_mean (float): 目标均值。
+        target_std (float): 目标标准差。
+        """
+        self.target_mean = mean
+        self.target_std = std
 
     def __call__(self, sample):
-        return (sample - self.min_val) / (self.max_val - self.min_val)
+        """
+        对输入样本进行归一化到指定的均值和标准差。
+
+        参数:
+        sample (ndarray): 输入的样本。
+
+        返回:
+        归一化后的样本。
+        """
+        current_mean = torch.mean(sample)
+        current_std = torch.std(sample)
+        
+        if current_std == 0:
+            # 避免除以零的情况
+            return torch.full_like(sample, self.target_mean)
+
+        normalized_sample = (sample - current_mean) / current_std
+        return normalized_sample * self.target_std + self.target_mean
 
 # 自定义水平翻转 transform
 class RandomHorizontalFlip:
@@ -88,36 +141,31 @@ def log_training_results(file_path, mode, epoch=None, train_loss=None, train_acc
             log_file.write("End of process\n")
             log_file.write("===============================================================================\n")
 #-------------------------------------------------------------------------------
-            
+               
 # 读取tif
 def read_tif(path):
-    dataset = gdal.Open(path)
-    cols = dataset.RasterXSize # 图像长度
-    rows = dataset.RasterYSize # 图像宽度
-    im_proj = (dataset.GetProjection()) # 读取投影
-    im_Geotrans = (dataset.GetGeoTransform()) # 读取仿射变换
-    im_data = dataset.ReadAsArray(0, 0, cols, rows) # 转为numpy格式
-    if len(im_data.shape)<3:
-        im_data = np.expand_dims(im_data, 0)
-    im_data = np.transpose(im_data, [1, 2, 0])
-    del dataset
-    return im_data, im_Geotrans, im_proj, cols, rows
+    with rasterio.open(path) as dataset:
+        im_data = dataset.read()  # 读取数据
+        if len(im_data) == 2:  # 处理单波段情况
+            im_data = im_data[np.newaxis, :, :]  # 添加波段维度
+        im_data = np.transpose(im_data, [1, 2, 0])  # 转置为 (height, width, channels)
+        im_proj = dataset.crs  # 读取投影
+        im_geotrans = dataset.transform  # 读取仿射变换
+        cols, rows = dataset.width, dataset.height
+    return im_data, im_geotrans, im_proj, cols, rows
+
 
 # 写出tif
-def write_tif(newpath, im_data, im_geotrans, im_proj, datatype):
-    # datatype常用gdal.GDT_UInt16 gdal.GDT_Int16 gdal.GDT_Float32
-    if len(im_data.shape)==3:
-        im_bands, im_height, im_width = im_data.shape
-    else:
-        im_bands, (im_height, im_width) = 1, im_data.shape
-    driver = gdal.GetDriverByName('GTiff')
-    new_dataset = driver.Create(newpath, im_width, im_height, im_bands, datatype)
-    new_dataset.SetGeoTransform(im_geotrans)
-    new_dataset.SetProjection(im_proj)
+def write_tif(newpath, im_data, im_geotrans, im_proj):
+    if len(im_data) == 2:  # 处理二维数据的情况
+        im_data = im_data[np.newaxis, :, :]  # 添加一个波段维度
+    bands = im_data.shape[0]
+    height = im_data.shape[1]
+    width = im_data.shape[2]
+    datatype = im_data.dtype  # 获取数据类型
 
-    if im_bands == 1:
-        new_dataset.GetRasterBand(1).WriteArray(np.squeeze(im_data, axis=0))
-    else:
-        for i in range(im_bands):
-            new_dataset.GetRasterBand(i+1).WriteArray(im_data[i])
-    del new_dataset
+    with rasterio.open(newpath, 'w', driver='GTiff', height=height, 
+                       width=width, count=bands, 
+                       dtype=datatype, crs=im_proj, transform=im_geotrans) as new_dataset:
+        for i in range(bands):
+            new_dataset.write(im_data[i, :, :], i + 1)

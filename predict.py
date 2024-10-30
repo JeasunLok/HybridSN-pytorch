@@ -2,41 +2,34 @@ import os
 import time
 import numpy as np
 import torch
+import rasterio
 import torch.backends.cudnn as cudnn
 from tqdm import tqdm
 from models.HybridSN import HybridSN
+from models.CNN_3D1D import CNN_3D_Classifer_1D
 from utils.dataloader import *
 from utils.utils import *
-
-def mirror_padding(image, patch_size):
-    pad_size = patch_size // 2
-    padded_image = np.pad(image, ((pad_size, pad_size), (pad_size, pad_size), (0, 0)), mode='reflect')
-    return padded_image
-
-def sliding_window(image, patch_size):
-    half_patch = patch_size // 2
-    for y in range(half_patch, image.shape[0] - half_patch):
-        for x in range(half_patch, image.shape[1] - half_patch):
-            yield x, y, image[y - half_patch:y + half_patch + 1, x - half_patch:x + half_patch + 1]
+from utils.process import *
 
 #-------------------------------------------------------------------------------
 # setting the parameters
 # model mode
 mode = "predict"
-model_path = r"logs\2024-08-31-03-11-16-HybridSN-train\model.pt" # model path
+model_path = r"logs/2024-09-24-16-23-02-3D_1D_CNN-train-5/model_e004_loss1.6738.pt" # model path
 # data settings
-input_path = r"data\ZY1E_AHSI_E113.18_N22.37_20230131_917748_L1A0000563893_Process.tif" # tif data
-output_name = r"output.tif" # tif data
+input_path = r"/home/ljs/HybridSN-pytorch/data/ZY1E_AHSI_E112.16_N22.37_20211114_011392_L1A0000363499-process.tif" # tif data
+output_name = r"output5.tif" # tif data
 # model settings
-model_type = "HybridSN" 
-patch_size = 33
-num_classes = 2
+model_type = "3D_1D_CNN" 
+patch_size = 5
+num_classes = 8
 
 if mode != "predict":
     raise ValueError("mode error!")
 
 # training settings
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# device = "cpu"
 
 # read input data
 img, im_geotrans, im_proj, cols, rows = read_tif(input_path)
@@ -48,18 +41,15 @@ bands = img.shape[2]
 #-------------------------------------------------------------------------------
 time_now = time.localtime()
 if model_type == "HybridSN":
-    time_folder = r".\\logs\\" + time.strftime("%Y-%m-%d-%H-%M-%S", time_now) + "-" + model_type + "-" + mode
+    time_folder = os.path.join("logs" ,time.strftime("%Y-%m-%d-%H-%M-%S", time_now) + "-" + model_type + "-" + mode + "-" + str(patch_size))
+    output_path = os.path.join(time_folder, output_name)
+    os.makedirs(time_folder)
+elif model_type == "3D_1D_CNN":
+    time_folder = os.path.join("logs" ,time.strftime("%Y-%m-%d-%H-%M-%S", time_now) + "-" + model_type + "-" + mode + "-" + str(patch_size))
     output_path = os.path.join(time_folder, output_name)
     os.makedirs(time_folder)
 else:
     raise ValueError("invalid model type!")
-#-------------------------------------------------------------------------------
-
-# time setting
-#-------------------------------------------------------------------------------
-np.random.seed(42)
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
 #-------------------------------------------------------------------------------
 
 # model initialized
@@ -70,19 +60,30 @@ if model_type == "HybridSN":
         patch_size = patch_size, 
         num_classes = num_classes,
     )
+elif model_type == "3D_1D_CNN":
+    model = CNN_3D_Classifer_1D(
+            input_channels = bands,
+            num_classes = num_classes,
+            patch_size = patch_size,
+            dilation =  1
+    )
 else:
     raise ValueError("invalid model type!")
 #-------------------------------------------------------------------------------
 
 # preict
 #-------------------------------------------------------------------------------
-model = model.to(device)
-
 # padding image
-padded_img = mirror_padding(img, patch_size)
+padded_img = padding(img, patch_size)
+
+# transform
+transform = Compose([
+    # Normalize(mean=0, std=1),
+    # RandomHorizontalFlip(p=0.5),
+])
 
 # load weights
-model = torch.load(model_path)
+model = torch.load(model_path).to(device)
 print(f"Load weights: {model_path}")
 model.eval()
 
@@ -90,17 +91,18 @@ model.eval()
 predictions = np.zeros((rows, cols))
 
 # step of sliding
-total_steps = (rows - patch_size + 1) * (cols - patch_size + 1)
+total_steps = rows * cols
 
 # predict
 with torch.no_grad():
     for x, y, patch in tqdm(sliding_window(padded_img, patch_size), total=total_steps, desc="Predicting"):
         patch_tensor = torch.from_numpy(patch).unsqueeze(0).permute(0, 3, 1, 2).unsqueeze(0).float().to(device)
+        patch_tensor = transform(patch_tensor)
         output = model(patch_tensor)
         output = torch.argmax(output, dim=1)
         output = output.squeeze().cpu().numpy()
         predictions[x, y] = output
 
 # store result
-write_tif(output_path, np.expand_dims(predictions, axis=0), im_geotrans, im_proj, gdal.GDT_Byte)
+write_tif(output_path, np.expand_dims(predictions.astype('uint8'), axis=0), im_geotrans, im_proj)
 #-------------------------------------------------------------------------------

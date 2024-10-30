@@ -4,15 +4,15 @@ from utils.utils import AverageMeter
 from utils.metrics import accuracy
 
 #-------------------------------------------------------------------------------
-def test_epoch(model, test_loader, criterion):
+def test_epoch(model, test_loader, criterion, device):
     loss_show = AverageMeter()
     acc = AverageMeter()
     label = np.array([])
     prediction = np.array([])
     loop = tqdm(enumerate(test_loader), total = len(test_loader))
     for batch_idx, (batch_data, batch_label) in loop:
-        batch_data = batch_data.float().cuda()
-        batch_label = batch_label.long().cuda()   
+        batch_data = batch_data.float().to(device)
+        batch_label = batch_label.long().to(device) 
 
         batch_prediction = model(batch_data)
         loss = criterion(batch_prediction, batch_label)

@@ -5,15 +5,15 @@ from utils.metrics import accuracy
 
 #-------------------------------------------------------------------------------
 # train model
-def train_epoch(model, train_loader, criterion, optimizer, e, epoch):
+def train_epoch(model, train_loader, criterion, optimizer, e, epoch, device):
     loss_show = AverageMeter()
     acc = AverageMeter()
     label = np.array([])
     prediction = np.array([])
     loop = tqdm(enumerate(train_loader), total = len(train_loader))
     for batch_idx, (batch_data, batch_label) in loop:
-        batch_data = batch_data.float().cuda()
-        batch_label = batch_label.long().cuda()   
+        batch_data = batch_data.float().to(device)
+        batch_label = batch_label.long().to(device)
 
         optimizer.zero_grad()
         batch_prediction = model(batch_data)
@@ -44,15 +44,15 @@ def train_epoch(model, train_loader, criterion, optimizer, e, epoch):
 #-------------------------------------------------------------------------------
 
 # validate model
-def valid_epoch(model, valid_loader, criterion):
+def valid_epoch(model, valid_loader, criterion, device):
     loss_show = AverageMeter()
     acc = AverageMeter()
     label = np.array([])
     prediction = np.array([])
     loop = tqdm(enumerate(valid_loader), total = len(valid_loader))
     for batch_idx, (batch_data, batch_label) in loop:
-        batch_data = batch_data.float().cuda()
-        batch_label = batch_label.long().cuda()   
+        batch_data = batch_data.float().to(device)
+        batch_label = batch_label.long().to(device)  
 
         batch_prediction = model(batch_data)
         loss = criterion(batch_prediction, batch_label)
@@ -73,5 +73,5 @@ def valid_epoch(model, valid_loader, criterion):
             "val_accuracy": f"{acc.average.item():.2f}%"
         })
         
-    return label, prediction
+    return loss_show.average, label, prediction
 #-------------------------------------------------------------------------------

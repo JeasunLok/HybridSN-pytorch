@@ -43,9 +43,9 @@ def load_and_split_data_by_file(data_file, label_file, train_ratio, val_ratio, p
             - X_train (numpy.ndarray): 训练集数据，形状为 [num_train, patch_size, patch_size, bands]。
             - X_val (numpy.ndarray): 验证集数据，形状为 [num_val, patch_size, patch_size, bands]。
             - X_test (numpy.ndarray): 测试集数据，形状为 [num_test, patch_size, patch_size, bands]。
-            - y_train (numpy.ndarray): 训练集标签，形状为 [num_train, 1]。
-            - y_val (numpy.ndarray): 验证集标签，形状为 [num_val, 1]。
-            - y_test (numpy.ndarray): 测试集标签，形状为 [num_test, 1]。
+            - y_train (numpy.ndarray): 训练集标签，形状为 [num_train]。
+            - y_val (numpy.ndarray): 验证集标签，形状为 [num_val]。
+            - y_test (numpy.ndarray): 测试集标签，形状为 [num_test]。
             - bands (int): 数据的波段数量（bands）。
             - num_classes (int): 标签的类别数量。
     """
@@ -62,7 +62,8 @@ def load_and_split_data_by_file(data_file, label_file, train_ratio, val_ratio, p
             patch_size = None
     
     # 获取标签的类别数量
-    num_classes = len(np.unique(labels))
+    classes = np.unique(labels)
+    num_classes = len(classes)
 
     # 根据 patch_size 进行数据裁剪
     if patch_size is not None:
@@ -70,16 +71,16 @@ def load_and_split_data_by_file(data_file, label_file, train_ratio, val_ratio, p
     
     # 首先分割出训练集和剩余集
     X_train, X_temp, y_train, y_temp = train_test_split(
-        data, labels, test_size=1-train_ratio, stratify=labels, random_state=42
+        data, labels, test_size=1-train_ratio, stratify=labels
     )
     
     # 然后从剩余集中分割出验证集和测试集
     val_size = val_ratio / (1 - train_ratio)
     X_val, X_test, y_val, y_test = train_test_split(
-        X_temp, y_temp, test_size=1-val_size, stratify=y_temp, random_state=42
+        X_temp, y_temp, test_size=1-val_size, stratify=y_temp
     )
     
-    return X_train, X_val, X_test, y_train, y_val, y_test, bands, num_classes
+    return X_train, X_val, X_test, y_train, y_val, y_test, bands, num_classes, classes
 
 def load_and_split_data_by_folder(data_folder, label_folder, train_ratio, val_ratio, patch_size=None):
     """
@@ -97,9 +98,9 @@ def load_and_split_data_by_folder(data_folder, label_folder, train_ratio, val_ra
             - X_train (numpy.ndarray): 训练集数据，形状为 [num_train, patch_size, patch_size, bands]。
             - X_val (numpy.ndarray): 验证集数据，形状为 [num_val, patch_size, patch_size, bands]。
             - X_test (numpy.ndarray): 测试集数据，形状为 [num_test, patch_size, patch_size, bands]。
-            - y_train (numpy.ndarray): 训练集标签，形状为 [num_train, 1]。
-            - y_val (numpy.ndarray): 验证集标签，形状为 [num_val, 1]。
-            - y_test (numpy.ndarray): 测试集标签，形状为 [num_test, 1]。
+            - y_train (numpy.ndarray): 训练集标签，形状为 [num_train]。
+            - y_val (numpy.ndarray): 验证集标签，形状为 [num_val]。
+            - y_test (numpy.ndarray): 测试集标签，形状为 [num_test]。
             - bands (int): 数据的波段数量（bands）。
             - num_classes (int): 标签的类别数量。
     """
@@ -116,6 +117,7 @@ def load_and_split_data_by_folder(data_folder, label_folder, train_ratio, val_ra
 
     # 逐一读取每个数据文件和标签文件
     for data_file, label_file in zip(data_files, label_files):
+        print(f"load data: {data_file} and {label_file}")
         data_path = os.path.join(data_folder, data_file)
         label_path = os.path.join(label_folder, label_file)
 
@@ -139,7 +141,8 @@ def load_and_split_data_by_folder(data_folder, label_folder, train_ratio, val_ra
             patch_size = None
 
     # 获取标签的类别数量
-    num_classes = len(np.unique(all_labels))
+    classes = np.unique(all_labels)
+    num_classes = len(classes)
 
     # 根据 patch_size 进行数据裁剪
     if patch_size is not None:
@@ -147,16 +150,71 @@ def load_and_split_data_by_folder(data_folder, label_folder, train_ratio, val_ra
 
     # 首先分割出训练集和剩余集
     X_train, X_temp, y_train, y_temp = train_test_split(
-        all_data, all_labels, test_size=1 - train_ratio, stratify=all_labels, random_state=42
+        all_data, all_labels, test_size=1 - train_ratio, stratify=all_labels
     )
 
     # 然后从剩余集中分割出验证集和测试集
     val_size = val_ratio / (1 - train_ratio)
     X_val, X_test, y_val, y_test = train_test_split(
-        X_temp, y_temp, test_size=1 - val_size, stratify=y_temp, random_state=42
+        X_temp, y_temp, test_size=1 - val_size, stratify=y_temp
     )
 
-    return X_train, X_val, X_test, y_train, y_val, y_test, bands, num_classes
+    return X_train, X_val, X_test, y_train, y_val, y_test, bands, num_classes, classes
+
+def split_data(data, label, train_ratio, val_ratio, patch_size=None):
+    """
+    读取文件夹中的多个 .mat 文件的数据和标签，并根据比例切分为训练集、验证集和测试集，同时返回波段数量和标签类别数。
+    
+    Args:
+        data (numpy.ndarray): 数据，形状为 [num_train, patch_size, patch_size, bands]。
+        label (numpy.ndarray):标签，形状为 [num_train]。
+        train_ratio (float): 训练集所占的比例，取值范围为 0 到 1。
+        val_ratio (float): 验证集所占的比例，取值范围为 0 到 1。
+        patch_size (int, optional): 补丁的尺寸。如果为 None，则不进行裁剪。默认是 None。
+    
+    Returns:
+        tuple: 包含以下内容的元组
+            - X_train (numpy.ndarray): 训练集数据，形状为 [num_train, patch_size, patch_size, bands]。
+            - X_val (numpy.ndarray): 验证集数据，形状为 [num_val, patch_size, patch_size, bands]。
+            - X_test (numpy.ndarray): 测试集数据，形状为 [num_test, patch_size, patch_size, bands]。
+            - y_train (numpy.ndarray): 训练集标签，形状为 [num_train]。
+            - y_val (numpy.ndarray): 验证集标签，形状为 [num_val]。
+            - y_test (numpy.ndarray): 测试集标签，形状为 [num_test]。
+            - bands (int): 数据的波段数量（bands）。
+            - num_classes (int): 标签的类别数量。
+    """
+    
+    all_data = data
+    all_labels = label
+
+    # 获取数据的形状信息
+    m, p, p, bands = all_data.shape
+
+    if patch_size is not None:
+        if p < patch_size:
+            patch_size = None
+
+    # 获取标签的类别数量
+    classes = np.unique(all_labels)
+    num_classes = len(classes)
+
+    # 根据 patch_size 进行数据裁剪
+    if patch_size is not None:
+        all_data = extract_center_patch(all_data, patch_size)
+
+    # 首先分割出训练集和剩余集
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        all_data, all_labels, test_size=1 - train_ratio, stratify=all_labels
+    )
+
+    # 然后从剩余集中分割出验证集和测试集
+    val_size = val_ratio / (1 - train_ratio)
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=1 - val_size, stratify=y_temp
+    )
+
+    return X_train, X_val, X_test, y_train, y_val, y_test, bands, num_classes, classes
+
 
 class HSI_dataset(Dataset):
     def __init__(self, data_array, label_array, transform=None):
